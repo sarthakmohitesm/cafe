@@ -11,20 +11,38 @@
         href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;1,400;1,600&family=Inter:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
     <style>
-        /* ===== CSS VARIABLES ===== */
+        /* ===== GAMING HUD VARIABLES ===== */
         :root {
-            --bg-primary: #1a1209;
-            --bg-secondary: #120d06;
-            --bg-card: #1f1710;
-            --gold: #d4a843;
-            --gold-light: #e8c56a;
-            --text-primary: #f5ead8;
-            --text-secondary: #c4b49a;
-            --text-muted: #8a7a62;
-            --border-color: rgba(212, 168, 67, 0.15);
-            --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.6);
+            --bg-primary: #050505;
+            --bg-secondary: #0a0a0d;
+            --bg-card: #0f1016;
+            --gold: #00f3ff; /* Neon Cyan */
+            --gold-light: #5df9ff;
+            --neon-red: #ff0055;
+            --text-primary: #e0faff;
+            --text-secondary: #94b0b8;
+            --text-muted: #5e7075;
+            --border-color: rgba(0, 243, 255, 0.2);
+            --shadow-lg: 0 0 30px rgba(0, 243, 255, 0.15);
             --font-display: 'Playfair Display', serif;
             --font-body: 'Inter', sans-serif;
+        }
+
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 2px, 3px 100%;
+            z-index: 1000;
+            pointer-events: none;
+            opacity: 0.3;
         }
 
         * {
@@ -310,36 +328,45 @@
 
         .panel {
             background: var(--bg-card);
-            border-radius: 16px;
+            border-radius: 4px; /* Hard Gaming edges */
             border: 1px solid var(--border-color);
             padding: 24px;
             overflow: hidden;
             animation: panelFadeIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
             opacity: 0;
             transform: translateY(20px);
+            position: relative;
+            box-shadow: inset 0 0 20px rgba(0, 243, 255, 0.03);
         }
 
-        @keyframes panelFadeIn {
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        .panel::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--gold), transparent);
+            animation: borderPulse 3s infinite;
         }
 
-        .panel:nth-child(1) { animation-delay: 0.1s; }
-        .panel:nth-child(2) { animation-delay: 0.2s; }
-        .panel:nth-child(3) { animation-delay: 0.3s; }
+        @keyframes borderPulse {
+            0% { opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
 
         .panel h3 {
-            font-family: var(--font-display);
-            font-size: 1.4rem;
-            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-size: 1.1rem;
+            color: var(--gold);
             margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid rgba(212, 168, 67, 0.2);
+            padding-bottom: 15px;
+            border-bottom: 1px dashed var(--border-color);
             display: flex;
             align-items: center;
             justify-content: space-between;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 800;
         }
 
         .data-table {
@@ -509,12 +536,18 @@
         }
 
         .mini-table.booked {
-            background: rgba(231, 76, 60, 0.4) !important;
-            border-color: rgba(231, 76, 60, 0.8) !important;
+            background: rgba(255, 0, 85, 0.2) !important;
+            border-color: var(--neon-red) !important;
             color: #fff !important;
             transform: scale(1.05);
-            box-shadow: 0 0 15px rgba(231, 76, 60, 0.25);
-            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            box-shadow: 0 0 20px rgba(255, 0, 85, 0.4);
+            text-shadow: 0 0 5px #ff0055;
+            animation: glitchedRed 2s infinite alternate;
+        }
+
+        @keyframes glitchedRed {
+            from { box-shadow: 0 0 10px rgba(255, 0, 85, 0.4); }
+            to { box-shadow: 0 0 25px rgba(255, 0, 85, 0.7); }
         }
 
         .floor-legend {

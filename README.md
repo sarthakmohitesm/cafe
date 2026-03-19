@@ -1,79 +1,73 @@
-# ☕ Café Aroma — Artisan Coffee & Fine Pastries
+# 🌌 [V1.2] CAFÉ AROMA: CYBER-ARTISAN PROTOCOL
 
-**Elevating the coffee experience through modern technology.**
-
-Café Aroma is a world-class café management and ordering ecosystem. It bridges the gap between artisan craftsmanship and digital efficiency, featuring a high-performance customer interface and an advanced, data-driven administrative command center.
-
----
-
-## ✨ Features & Capabilities
-
-### 📱 Customer Digital Experience
-- **Interactive Menu:** A high-end visual menu with real-time category filtering (Coffee, Tea, Pastries, etc.) and smooth card entrance animations.
-- **Direct Express Checkout:** A custom **Floating Cart** solution. Customers can order instantly for pickup/takeaway without the need for a formal table booking.
-- **Visual Reservation Engine:** A premium 3-step checkout:
-  1. **Visual Table Selection:** See the café's floor plan and pick your favorite spot.
-  2. **Reservation Metrics:** Define party size and precise timing.
-  3. **Cart Integration:** Add food and drinks to your reservation for instant service upon arrival.
-
-### 💼 Admin Command Center
-- **Animated Dashboard:** A smooth, interactive experience with staggered entrance animations for all control panels.
-- **Live Floor Map:** A "graphical" bird's-eye view of your café floor.
-  - **Dynamic Status:** Tables turn **Red** when booked and return to **Green** once completed.
-  - **Visual Timing:** The **Table Number** and **Booking Time** are displayed directly on the table icons for glanceable management.
-  - **Hover Tooltips:** Hover over any table to see the specific customer name and order details.
-- **Real-Time Data Pipeline:** A high-speed connection between the database and the dashboard ensures statistics (Revenue, Orders, Bookings) stay accurate to the second.
+> **Status:** Online
+> **Environment:** Neon-Grid Optimized
+> **Protocol:** Cafe Management & Rapid Deployment
 
 ---
 
-## 🔄 System Workflow & Explanation
+## ⚡ SYSTEM OVERVIEW (THE HUD)
+
+**CAFÉ AROMA** is not just a website; it's a high-performance **Operating Environment** for artisan coffee. Designed with a **Cyberpunk Gaming Aesthetic**, it features a real-time reactive interface for both customers and operators.
+
+### 🕹️ CUSTOMER HUD (FRONT-END)
+- **NEON MENU:** Rapid filtering with zero-latency category switching.
+- **CYBER-CART:** A floating, state-of-the-art order relay system.
+- **TACTICAL BOOKING:** Visual table selection integrated with the main ordering pipeline.
+
+### 🛡️ OPERATOR COMMAND (ADMIN DASHBOARD)
+- **HUD OVERLAY:** A full-screen admin interface with **Scanline Effects** and **CRT CRT Flicker**.
+- **LIVE FLOOR GRID:** A real-time spatial map of the arena.
+  - **HOSTILE/BOOKED:** Tables pulse in **Laser Red** (#FF0055) when occupied.
+  - **IDLE/AVAILABLE:** Tables glow in **Neon Cyan** (#00F3FF) when ready.
+- **DATA RELAY:** Live telemetry for Revenue, Orders, and Terminal status.
+
+---
+
+## 🛠️ TECH SPECS [HARDWARE & SOFTWARE]
+
+- **CORE ENGINE:** Node.js [v18+]
+- **DATA STORAGE:** MySQL [Protocol 8.0]
+- **INTERFACE:** Vanilla CSS3 [Neon Design System]
+- **LOGIC:** ES6+ JavaScript [Asynchronous Flow]
+
+---
+
+## 🔄 THE FLOW [SYSTEM TELEMETRY]
 
 ```mermaid
-graph TD
-    A[Customer Site] -->|Direct Order| B(Floating Cart)
-    A -->|Reservation| C(Interactive Floor Map)
-    B -->|Submit| D[MySQL Orders Table]
-    C -->|Choose Table| E(Cart Integration)
-    E -->|Confirm| F[MySQL Reservations & Orders]
+graph LR
+    User([Customer]) -- "Interact" --> Portal[Cafe UI]
+    Portal -- "Direct Order" --> Cart[Neon Float Cart]
+    Portal -- "Tactical Booking" --> Map[Interactive Floor Map]
     
-    subgraph Admin Dashboard
-        G[Real-Time Stats]
-        H[Live Floor Map Controller]
-        I[Order Management]
-    end
+    Cart -- "Commit" --> DB[(MySQL Core)]
+    Map -- "Commit" --> DB
     
-    D -->|Notify| G
-    F -->|Update Status| H
-    D -->|Sync| I
-    H -->|Update Color| J[Visual Table Map]
+    DB -- "Sync 60Hz" --> Admin[Admin HUD]
+    Admin -- "Logic" --> Visuals[Animated Map Graph]
+    
+    style Admin fill:#0a0a0d,stroke:#00f3ff,stroke-width:4px,color:#e0faff
+    style DB fill:#050505,stroke:#ff0055,stroke-width:2px,color:#fff
 ```
-
-### How it Works:
-1.  **Order Submission:** Every action (Order/Reservation) creates record in the MySQL database.
-2.  **Dashboard Sync:** The admin dashboard polls the server (or uses the refresh trigger) to pull the latest state of all tables.
-3.  **Visualization:** The logic calculates if a table is "Active" for the current date and time, dynamically switching its color and injecting the booking time into the map element.
 
 ---
 
-## 🚀 Setup & Launch
+## 🚀 DEPLOY PROTOCOL
 
-### 1. Requirements
-- Node.js (Latest LTS)
-- MySQL Workbench
-
-### 2. Quick Setup
 ```bash
-# Clone and install
+# ACTIVATE ENVIRONMENT
 git clone https://github.com/sarthakmohitesm/cafe.git
 cd cafe
-npm install
 
-# Start development server
+# INSTALL MODULES
+npm i
+
+# INITIAL_BOOT
 npm start
 ```
-- **Public Site:** `http://localhost:3000`
-- **Admin App:** `http://localhost:3000/admin.html` (Login: `admin` / `admin123`)
 
 ---
 
-Developed with precision by the **Antigravity AI Coding Assistant**.
+**[ACCESS GRANTED]**
+*Developed by the Antigravity AI Sub-Protocol.*
