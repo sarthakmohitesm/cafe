@@ -1,0 +1,175 @@
+-- ============================================================
+-- CAFÉ AROMA - MySQL Database Setup Queries
+-- Run these queries in MySQL Workbench to set up the database
+-- ============================================================
+
+-- Step 1: Create the database
+CREATE DATABASE IF NOT EXISTS cafe_aroma_db;
+USE cafe_aroma_db;
+
+-- ============================================================
+-- Step 2: Create the 'categories' table
+-- ============================================================
+CREATE TABLE IF NOT EXISTS categories (
+    category_id INT AUTO_INCREMENT PRIMARY KEY,
+    category_name VARCHAR(100) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================
+-- Step 3: Create the 'menu_items' table
+-- ============================================================
+CREATE TABLE IF NOT EXISTS menu_items (
+    item_id INT AUTO_INCREMENT PRIMARY KEY,
+    item_name VARCHAR(150) NOT NULL,
+    description TEXT,
+    price DECIMAL(10, 2) NOT NULL,
+    category_id INT,
+    image_url VARCHAR(255),
+    is_available BOOLEAN DEFAULT TRUE,
+    is_featured BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE SET NULL
+);
+
+-- ============================================================
+-- Step 4: Create the 'customers' table
+-- ============================================================
+CREATE TABLE IF NOT EXISTS customers (
+    customer_id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(200) NOT NULL,
+    email VARCHAR(200) UNIQUE NOT NULL,
+    phone VARCHAR(20),
+    address TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================
+-- Step 5: Create the 'orders' table
+-- ============================================================
+CREATE TABLE IF NOT EXISTS orders (
+    order_id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT,
+    order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    total_amount DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    status ENUM('pending', 'preparing', 'ready', 'delivered', 'cancelled') DEFAULT 'pending',
+    special_instructions TEXT,
+    FOREIGN KEY (customer_id) REFERENCES customers(customer_id) ON DELETE SET NULL
+);
+
+-- ============================================================
+-- Step 6: Create the 'order_items' table
+-- ============================================================
+CREATE TABLE IF NOT EXISTS order_items (
+    order_item_id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    item_id INT NOT NULL,
+    quantity INT NOT NULL DEFAULT 1,
+    unit_price DECIMAL(10, 2) NOT NULL,
+    subtotal DECIMAL(10, 2) NOT NULL,
+    FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE,
+    FOREIGN KEY (item_id) REFERENCES menu_items(item_id) ON DELETE CASCADE
+);
+
+-- ============================================================
+-- Step 7: Create the 'reservations' table
+-- ============================================================
+CREATE TABLE IF NOT EXISTS reservations (
+    reservation_id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_name VARCHAR(200) NOT NULL,
+    email VARCHAR(200) NOT NULL,
+    phone VARCHAR(20) NOT NULL,
+    reservation_date DATE NOT NULL,
+    reservation_time TIME NOT NULL,
+    party_size INT NOT NULL DEFAULT 1,
+    special_requests TEXT,
+    status ENUM('pending', 'confirmed', 'cancelled', 'completed') DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================
+-- Step 8: Create the 'contact_messages' table
+-- ============================================================
+CREATE TABLE IF NOT EXISTS contact_messages (
+    message_id INT AUTO_INCREMENT PRIMARY KEY,
+    sender_name VARCHAR(200) NOT NULL,
+    sender_email VARCHAR(200) NOT NULL,
+    subject VARCHAR(255),
+    message TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================
+-- Step 9: Create the 'reviews' table
+-- ============================================================
+CREATE TABLE IF NOT EXISTS reviews (
+    review_id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_name VARCHAR(200) NOT NULL,
+    email VARCHAR(200),
+    rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    review_text TEXT,
+    is_approved BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================
+-- Step 10: Insert sample categories
+-- ============================================================
+INSERT INTO categories (category_name, description) VALUES
+('Hot Coffee', 'Our signature hot coffee beverages made with freshly roasted beans'),
+('Cold Coffee', 'Refreshing iced and cold brew coffee drinks'),
+('Tea', 'Premium loose leaf teas from around the world'),
+('Pastries', 'Freshly baked pastries and bread'),
+('Desserts', 'Indulgent cakes and sweet treats'),
+('Breakfast', 'Hearty breakfast items to start your day');
+
+-- ============================================================
+-- Step 11: Insert sample menu items
+-- ============================================================
+INSERT INTO menu_items (item_name, description, price, category_id, image_url, is_available, is_featured) VALUES
+-- Hot Coffee
+('Classic Espresso', 'Rich and bold single-origin espresso shot with golden crema', 3.50, 1, '/images/espresso.png', TRUE, TRUE),
+('Cappuccino', 'Perfectly balanced espresso with steamed milk and velvety foam art', 4.50, 1, '/images/cappuccino.png', TRUE, TRUE),
+('Café Latte', 'Smooth espresso blended with creamy steamed milk', 4.75, 1, '/images/cappuccino.png', TRUE, FALSE),
+('Mocha Delight', 'Espresso with rich chocolate and steamed milk topped with whipped cream', 5.25, 1, '/images/cappuccino.png', TRUE, TRUE),
+('Americano', 'Double espresso diluted with hot water for a smooth finish', 3.75, 1, '/images/espresso.png', TRUE, FALSE),
+
+-- Cold Coffee
+('Iced Caramel Latte', 'Chilled espresso with caramel drizzle and cold milk over ice', 5.50, 2, '/images/cappuccino.png', TRUE, TRUE),
+('Cold Brew', 'Slow-steeped 24-hour cold brew, smooth and naturally sweet', 4.25, 2, '/images/espresso.png', TRUE, FALSE),
+('Frappe Mocha', 'Blended iced mocha with whipped cream and chocolate shavings', 5.75, 2, '/images/cappuccino.png', TRUE, FALSE),
+
+-- Tea
+('English Breakfast Tea', 'Classic strong black tea served with milk on the side', 3.00, 3, '/images/espresso.png', TRUE, FALSE),
+('Green Matcha Latte', 'Ceremonial grade matcha whisked with steamed milk', 4.50, 3, '/images/cappuccino.png', TRUE, TRUE),
+('Chamomile Bliss', 'Soothing chamomile herbal tea with honey', 3.25, 3, '/images/espresso.png', TRUE, FALSE),
+
+-- Pastries
+('Butter Croissant', 'Flaky, golden French-style croissant made with pure butter', 3.50, 4, '/images/croissant.png', TRUE, TRUE),
+('Chocolate Danish', 'Pastry swirled with rich Belgian chocolate filling', 4.00, 4, '/images/croissant.png', TRUE, FALSE),
+('Blueberry Muffin', 'Moist muffin bursting with fresh blueberries', 3.75, 4, '/images/croissant.png', TRUE, FALSE),
+
+-- Desserts
+('Tiramisu', 'Classic Italian tiramisu with espresso-soaked ladyfingers', 6.50, 5, '/images/croissant.png', TRUE, TRUE),
+('Chocolate Lava Cake', 'Warm cake with a molten chocolate center', 7.00, 5, '/images/croissant.png', TRUE, FALSE),
+
+-- Breakfast
+('Avocado Toast', 'Sourdough toast topped with smashed avocado, cherry tomatoes, and microgreens', 8.50, 6, '/images/croissant.png', TRUE, TRUE),
+('Eggs Benedict', 'Poached eggs on English muffin with hollandaise sauce', 9.50, 6, '/images/croissant.png', TRUE, FALSE);
+
+-- ============================================================
+-- Step 12: Insert sample reviews
+-- ============================================================
+INSERT INTO reviews (customer_name, email, rating, review_text, is_approved) VALUES
+('Ananya Sharma', 'ananya@email.com', 5, 'Absolutely love this café! The cappuccino is the best I have ever had. The cozy ambiance makes it my favorite spot.', TRUE),
+('Rahul Verma', 'rahul@email.com', 4, 'Great coffee and the pastries are always fresh. The staff is very friendly and welcoming.', TRUE),
+('Priya Patel', 'priya@email.com', 5, 'The tiramisu here is to die for! Perfect place for a weekend brunch with friends.', TRUE),
+('Vikram Singh', 'vikram@email.com', 4, 'Nice ambiance and quality drinks. Would definitely recommend the cold brew on a hot day.', TRUE),
+('Meera Joshi', 'meera@email.com', 5, 'Best café in the city! The avocado toast is absolutely delicious and the coffee is always perfect.', TRUE);
+
+-- ============================================================
+-- END OF DATABASE SETUP
+-- ============================================================
