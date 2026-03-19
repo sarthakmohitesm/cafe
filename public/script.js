@@ -166,6 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetch('/api/categories')
             ]);
             const menuItems = await menuRes.json();
+            window.fullMenu = menuItems;
             const categories = await catRes.json();
 
             renderFilterButtons(categories);
@@ -208,7 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <p class="menu-card-desc">${item.description}</p>
                     <div class="menu-card-footer">
                         <span class="menu-card-price">$${parseFloat(item.price).toFixed(2)}</span>
-                        <button class="add-to-order-btn" title="Add to order" onclick="showToast('${item.item_name} added to your order!')">+</button>
+                        <button class="add-to-order-btn" title="Add to order" onclick="window.addDirectToCart(${item.item_id})">+</button>
                     </div>
                 </div>
             `;
@@ -240,155 +241,343 @@ document.addEventListener('DOMContentLoaded', () => {
 
     loadMenu();
 
-    // ===== FETCH AND RENDER FEATURED / SPECIALS =====
-    async function loadSpecials() {
+
+
+    // ===== TABLE BOOKING SYSTEM =====
+    let selectedTable = null;
+    let bookingInfo = {};
+    let cart = [];
+    let allMenuItems = [];
+    let bookedTables = [];
+
+    // Fetch booked tables status
+    async function loadBookedTables() {
         try {
-            const res = await fetch('/api/menu/featured');
-            const featured = await res.json();
-            renderSpecials(featured);
-        } catch (error) {
-            console.error('Error loading specials:', error);
+            const res = await fetch('/api/tables/status');
+            const data = await res.json();
+            bookedTables = data.filter(t => t.status === 'booked').map(t => t.table_id);
+        } catch (e) {
+            bookedTables = [];
         }
+        updateTableStatus();
     }
 
-    function renderSpecials(items) {
-        const carousel = document.getElementById('specialsCarousel');
-        carousel.innerHTML = '';
-
-        items.forEach((item, index) => {
-            const card = document.createElement('div');
-            card.classList.add('special-card');
-            card.style.animationDelay = `${index * 0.12}s`;
-
-            card.innerHTML = `
-                <div class="special-card-image">
-                    <img src="${item.image_url || '/images/cappuccino.png'}" alt="${item.item_name}" loading="lazy">
-                </div>
-                <div class="special-card-body">
-                    <h3 class="special-card-name">${item.item_name}</h3>
-                    <p class="special-card-desc">${item.description}</p>
-                    <span class="special-card-price">$${parseFloat(item.price).toFixed(2)}</span>
-                </div>
-            `;
-
-            carousel.appendChild(card);
+    function updateTableStatus() {
+        document.querySelectorAll('.table-spot').forEach(spot => {
+            const tableId = parseInt(spot.dataset.tableId);
+            if (bookedTables.includes(tableId)) {
+                spot.classList.add('booked');
+            } else {
+                spot.classList.remove('booked');
+            }
+        });
+        // Also update mini-map
+        document.querySelectorAll('.mini-table').forEach((mini, idx) => {
+            const tableId = idx + 1;
+            if (bookedTables.includes(tableId)) {
+                mini.classList.add('booked');
+            } else {
+                mini.classList.remove('booked');
+            }
         });
     }
 
-    loadSpecials();
+    // Open modal
+    const openBtn = document.getElementById('openTableMapBtn');
+    const tableModal = document.getElementById('tableModal');
+    const closeModal = document.getElementById('closeTableModal');
 
-    // ===== FETCH AND RENDER REVIEWS =====
-    let currentReview = 0;
-    let reviewsData = [];
-
-    async function loadReviews() {
-        try {
-            const res = await fetch('/api/reviews');
-            reviewsData = await res.json();
-            renderReviews(reviewsData);
-            startReviewAutoSlide();
-        } catch (error) {
-            console.error('Error loading reviews:', error);
-        }
-    }
-
-    function renderReviews(reviews) {
-        const slider = document.getElementById('reviewsSlider');
-        const dots = document.getElementById('reviewsDots');
-        slider.innerHTML = '';
-        dots.innerHTML = '';
-
-        reviews.forEach((review, index) => {
-            // Create review card
-            const card = document.createElement('div');
-            card.classList.add('review-card');
-
-            const stars = Array.from({ length: 5 }, (_, i) =>
-                `<span class="review-star ${i < review.rating ? '' : 'empty'}">${i < review.rating ? '★' : '☆'}</span>`
-            ).join('');
-
-            const dateStr = review.created_at ? new Date(review.created_at).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
-
-            card.innerHTML = `
-                <div class="review-stars">${stars}</div>
-                <p class="review-text">"${review.review_text}"</p>
-                <p class="review-author">${review.customer_name}</p>
-                <p class="review-date">${dateStr}</p>
-            `;
-
-            slider.appendChild(card);
-
-            // Create dot
-            const dot = document.createElement('button');
-            dot.classList.add('review-dot');
-            if (index === 0) dot.classList.add('active');
-            dot.addEventListener('click', () => goToReview(index));
-            dots.appendChild(dot);
+    if (openBtn) {
+        openBtn.addEventListener('click', () => {
+            loadBookedTables();
+            resetBookingFlow();
+            tableModal.classList.add('active');
+            document.body.style.overflow = 'hidden';
         });
     }
 
-    function goToReview(index) {
-        currentReview = index;
-        const slider = document.getElementById('reviewsSlider');
-        slider.style.transform = `translateX(-${index * 100}%)`;
-
-        document.querySelectorAll('.review-dot').forEach((dot, i) => {
-            dot.classList.toggle('active', i === index);
+    if (closeModal) {
+        closeModal.addEventListener('click', () => {
+            tableModal.classList.remove('active');
+            document.body.style.overflow = '';
         });
     }
 
-    function startReviewAutoSlide() {
-        setInterval(() => {
-            currentReview = (currentReview + 1) % reviewsData.length;
-            goToReview(currentReview);
-        }, 5000);
+    // Click outside modal to close
+    if (tableModal) {
+        tableModal.addEventListener('click', (e) => {
+            if (e.target === tableModal) {
+                tableModal.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        });
     }
 
-    loadReviews();
+    function resetBookingFlow() {
+        selectedTable = null;
+        cart = [];
+        showStep('stepSelectTable');
+        document.getElementById('selectedTableInfo').style.display = 'none';
+        document.querySelectorAll('.table-spot').forEach(s => s.classList.remove('selected'));
+    }
 
-    // ===== RESERVATION FORM =====
-    const reservationForm = document.getElementById('reservationForm');
-    if (reservationForm) {
-        // Set min date to today
-        const dateInput = document.getElementById('resDate');
-        if (dateInput) {
-            const today = new Date().toISOString().split('T')[0];
-            dateInput.setAttribute('min', today);
-        }
+    function showStep(stepId) {
+        document.querySelectorAll('.modal-step').forEach(s => s.style.display = 'none');
+        document.getElementById(stepId).style.display = 'block';
+    }
 
-        reservationForm.addEventListener('submit', async (e) => {
+    // Table selection
+    document.querySelectorAll('.table-spot').forEach(spot => {
+        spot.addEventListener('click', () => {
+            if (spot.classList.contains('booked')) return;
+
+            // Deselect all
+            document.querySelectorAll('.table-spot').forEach(s => s.classList.remove('selected'));
+
+            // Select this one
+            spot.classList.add('selected');
+            selectedTable = {
+                id: parseInt(spot.dataset.tableId),
+                seats: parseInt(spot.dataset.seats),
+                zone: spot.dataset.zone
+            };
+
+            // Show info bar
+            const info = document.getElementById('selectedTableInfo');
+            info.style.display = 'block';
+            document.getElementById('selectedTableName').textContent = `Table T${selectedTable.id}`;
+            document.getElementById('selectedTableSeats').textContent = selectedTable.seats;
+            document.getElementById('selectedTableZone').textContent = selectedTable.zone;
+        });
+    });
+
+    // Proceed to booking form
+    const proceedBtn = document.getElementById('proceedToBookingBtn');
+    if (proceedBtn) {
+        proceedBtn.addEventListener('click', () => {
+            if (!selectedTable) return;
+            document.getElementById('bookingTableLabel').textContent = `T${selectedTable.id} (${selectedTable.seats} seats, ${selectedTable.zone})`;
+            // Set date min
+            const dateInput = document.getElementById('tbDate');
+            if (dateInput) {
+                const today = new Date().toISOString().split('T')[0];
+                dateInput.setAttribute('min', today);
+            }
+            showStep('stepBookingForm');
+        });
+    }
+
+    // Back to tables
+    const backBtn = document.getElementById('backToTablesBtn');
+    if (backBtn) {
+        backBtn.addEventListener('click', () => {
+            showStep('stepSelectTable');
+        });
+    }
+
+    // Booking form submit
+    const bookingForm = document.getElementById('tableBookingForm');
+    if (bookingForm) {
+        bookingForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const btn = document.getElementById('reserveBtn');
+
+            bookingInfo = {
+                customer_name: document.getElementById('tbName').value,
+                email: document.getElementById('tbEmail').value,
+                phone: document.getElementById('tbPhone').value,
+                party_size: document.getElementById('tbGuests').value,
+                reservation_date: document.getElementById('tbDate').value,
+                reservation_time: document.getElementById('tbTime').value,
+                table_id: selectedTable.id
+            };
+
+            const btn = document.getElementById('confirmBookingBtn');
             btn.textContent = 'Booking...';
             btn.disabled = true;
-
-            const formData = {
-                customer_name: document.getElementById('resName').value,
-                email: document.getElementById('resEmail').value,
-                phone: document.getElementById('resPhone').value,
-                party_size: document.getElementById('resGuests').value,
-                reservation_date: document.getElementById('resDate').value,
-                reservation_time: document.getElementById('resTime').value,
-                special_requests: document.getElementById('resNotes').value
-            };
 
             try {
                 const res = await fetch('/api/reservations', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData)
+                    body: JSON.stringify(bookingInfo)
                 });
                 const data = await res.json();
-                showToast(data.message || 'Reservation confirmed! 🎉');
-                reservationForm.reset();
-            } catch (error) {
-                showToast('Something went wrong. Please try again.');
-            } finally {
-                btn.textContent = 'Reserve Now';
-                btn.disabled = false;
+                bookingInfo.booking_id = data.id;
+            } catch (e) {
+                bookingInfo.booking_id = Date.now();
             }
+
+            btn.textContent = 'Confirm Booking';
+            btn.disabled = false;
+
+            // Load menu for order step
+            await loadOrderMenu();
+            document.getElementById('orderTableLabel').textContent = `T${selectedTable.id}`;
+            showStep('stepPlaceOrder');
         });
     }
+
+    // Load menu items for ordering
+    async function loadOrderMenu() {
+        try {
+            const res = await fetch('/api/menu');
+            allMenuItems = await res.json();
+        } catch (e) {
+            allMenuItems = [];
+        }
+        renderOrderMenu();
+    }
+
+    function renderOrderMenu() {
+        const list = document.getElementById('orderMenuList');
+        list.innerHTML = '';
+
+        allMenuItems.forEach(item => {
+            const div = document.createElement('div');
+            div.classList.add('order-menu-item');
+            div.innerHTML = `
+                <img src="${item.image_url || '/images/cappuccino.png'}" alt="${item.item_name}">
+                <div class="order-item-details">
+                    <h4>${item.item_name}</h4>
+                    <span>$${parseFloat(item.price).toFixed(2)}</span>
+                </div>
+                <button class="order-add-btn" data-item-id="${item.item_id}" title="Add to order">+</button>
+            `;
+            div.querySelector('.order-add-btn').addEventListener('click', () => addToCart(item));
+            list.appendChild(div);
+        });
+    }
+
+    function addToCart(item) {
+        const existing = cart.find(c => c.item_id === item.item_id);
+        if (existing) {
+            existing.quantity++;
+        } else {
+            cart.push({
+                item_id: item.item_id,
+                item_name: item.item_name,
+                price: parseFloat(item.price),
+                quantity: 1
+            });
+        }
+        renderCart();
+    }
+
+    function renderCart() {
+        const cartItems = document.getElementById('cartItems');
+        const cartTotal = document.getElementById('cartTotal');
+        const placeOrderBtn = document.getElementById('placeOrderBtn');
+
+        if (cart.length === 0) {
+            cartItems.innerHTML = '<p class="cart-empty">No items yet. Add from the menu!</p>';
+            cartTotal.textContent = '$0.00';
+            placeOrderBtn.disabled = true;
+            return;
+        }
+
+        placeOrderBtn.disabled = false;
+        let total = 0;
+
+        cartItems.innerHTML = cart.map(item => {
+            const lineTotal = item.price * item.quantity;
+            total += lineTotal;
+            return `
+                <div class="cart-item">
+                    <span class="cart-item-name">${item.item_name}</span>
+                    <div class="cart-item-qty">
+                        <button onclick="updateCartQty(${item.item_id}, -1)">−</button>
+                        <span>${item.quantity}</span>
+                        <button onclick="updateCartQty(${item.item_id}, 1)">+</button>
+                    </div>
+                    <span class="cart-item-price">$${lineTotal.toFixed(2)}</span>
+                </div>
+            `;
+        }).join('');
+
+        cartTotal.textContent = `$${total.toFixed(2)}`;
+    }
+
+    // Make updateCartQty globally accessible
+    window.updateCartQty = function(itemId, delta) {
+        const item = cart.find(c => c.item_id === itemId);
+        if (item) {
+            item.quantity += delta;
+            if (item.quantity <= 0) {
+                cart = cart.filter(c => c.item_id !== itemId);
+            }
+        }
+        renderCart();
+    };
+
+    // Place order
+    const placeOrderBtn = document.getElementById('placeOrderBtn');
+    if (placeOrderBtn) {
+        placeOrderBtn.addEventListener('click', async () => {
+            placeOrderBtn.textContent = 'Placing...';
+            placeOrderBtn.disabled = true;
+
+            const orderData = {
+                customer_name: bookingInfo.customer_name,
+                email: bookingInfo.email,
+                phone: bookingInfo.phone,
+                table_id: selectedTable.id,
+                items: cart
+            };
+
+            try {
+                const res = await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(orderData)
+                });
+                const data = await res.json();
+            } catch (e) {}
+
+            const total = cart.reduce((sum, i) => sum + i.price * i.quantity, 0);
+            showConfirmation(total);
+        });
+    }
+
+    // Skip order
+    const skipOrderBtn = document.getElementById('skipOrderBtn');
+    if (skipOrderBtn) {
+        skipOrderBtn.addEventListener('click', () => {
+            showConfirmation(0);
+        });
+    }
+
+    function showConfirmation(orderTotal) {
+        const details = document.getElementById('confirmDetails');
+        details.innerHTML = `
+            <strong>${bookingInfo.customer_name}</strong><br>
+            Table T${selectedTable.id} (${selectedTable.zone})<br>
+            Date: ${bookingInfo.reservation_date} at ${bookingInfo.reservation_time}<br>
+            Guests: ${bookingInfo.party_size}
+        `;
+
+        const orderInfo = document.getElementById('confirmOrder');
+        if (orderTotal > 0) {
+            orderInfo.textContent = `Order Total: $${orderTotal.toFixed(2)} (${cart.length} items)`;
+        } else {
+            orderInfo.textContent = 'No food order placed.';
+        }
+
+        showStep('stepConfirmation');
+    }
+
+    // Close confirmation
+    const closeConfirmBtn = document.getElementById('closeConfirmBtn');
+    if (closeConfirmBtn) {
+        closeConfirmBtn.addEventListener('click', () => {
+            tableModal.classList.remove('active');
+            document.body.style.overflow = '';
+            showToast('Booking confirmed! See you soon ☕');
+            loadBookedTables();
+        });
+    }
+
+    // Load table status on page load
+    loadBookedTables();
 
     // ===== CONTACT FORM =====
     const contactForm = document.getElementById('contactForm');
@@ -449,3 +638,153 @@ function showToast(message) {
         toast.classList.remove('show');
     }, 3500);
 }
+
+// ===== DIRECT ORDER FLOATING CART =====
+let directCart = [];
+
+window.addDirectToCart = function(itemId) {
+    if (!window.fullMenu) return;
+    const item = window.fullMenu.find(i => i.item_id === itemId);
+    if (!item) return;
+
+    const existing = directCart.find(c => c.item_id === itemId);
+    if (existing) {
+        existing.quantity++;
+    } else {
+        directCart.push({
+            item_id: item.item_id,
+            item_name: item.item_name,
+            price: parseFloat(item.price),
+            quantity: 1
+        });
+    }
+    
+    showToast(`${item.item_name} added to your order!`);
+    updateDirectCartUI();
+};
+
+window.updateDirectCartQty = function(itemId, delta) {
+    const item = directCart.find(c => c.item_id === itemId);
+    if (item) {
+        item.quantity += delta;
+        if (item.quantity <= 0) {
+            directCart = directCart.filter(c => c.item_id !== itemId);
+        }
+    }
+    updateDirectCartUI();
+};
+
+function updateDirectCartUI() {
+    const badge = document.getElementById('floatingCartBadge');
+    const floatBtn = document.getElementById('floatingCartBtn');
+    
+    const count = directCart.reduce((sum, i) => sum + i.quantity, 0);
+    badge.textContent = count;
+    
+    // Show/hide floating button
+    if (count > 0) {
+        floatBtn.style.display = 'flex';
+    } else {
+        floatBtn.style.display = 'none';
+        const modal = document.getElementById('directOrderModal');
+        if (modal && modal.classList.contains('active')) {
+            modal.classList.remove('active');
+        }
+    }
+    
+    renderDirectCartModal();
+}
+
+function renderDirectCartModal() {
+    const container = document.getElementById('directCartItems');
+    const totalEl = document.getElementById('directCartTotal');
+    const submitBtn = document.getElementById('submitDirectOrderBtn');
+    
+    if (directCart.length === 0) {
+        if(container) container.innerHTML = '<p class="cart-empty">No items yet. Add from the menu!</p>';
+        if(totalEl) totalEl.textContent = '$0.00';
+        if(submitBtn) submitBtn.disabled = true;
+        return;
+    }
+    
+    let total = 0;
+    const html = directCart.map(i => {
+        const lineTotal = i.price * i.quantity;
+        total += lineTotal;
+        return `
+            <div class="cart-item">
+                <span class="cart-item-name">${i.item_name}</span>
+                <div class="cart-item-qty">
+                    <button type="button" onclick="window.updateDirectCartQty(${i.item_id}, -1)">−</button>
+                    <span>${i.quantity}</span>
+                    <button type="button" onclick="window.updateDirectCartQty(${i.item_id}, 1)">+</button>
+                </div>
+                <span class="cart-item-price">$${lineTotal.toFixed(2)}</span>
+            </div>
+        `;
+    }).join('');
+    
+    if(container) container.innerHTML = html;
+    if(totalEl) totalEl.textContent = `$${total.toFixed(2)}`;
+    if(submitBtn) submitBtn.disabled = false;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const floatBtn = document.getElementById('floatingCartBtn');
+    const directModal = document.getElementById('directOrderModal');
+    const closeBtn = document.getElementById('closeDirectOrderModal');
+    
+    if (floatBtn) {
+        floatBtn.addEventListener('click', () => {
+            renderDirectCartModal();
+            directModal.classList.add('active');
+        });
+    }
+    
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            directModal.classList.remove('active');
+        });
+    }
+    
+    const directForm = document.getElementById('directOrderForm');
+    if (directForm) {
+        directForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submitDirectOrderBtn');
+            submitBtn.textContent = 'Placing Order...';
+            submitBtn.disabled = true;
+            
+            const orderData = {
+                customer_name: document.getElementById('doName').value,
+                email: document.getElementById('doEmail').value,
+                phone: document.getElementById('doPhone').value,
+                table_id: null,
+                items: directCart
+            };
+            
+            try {
+                const res = await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(orderData)
+                });
+                
+                const data = await res.json();
+                showToast(data.message || 'Order Placed Successfully!');
+                
+                // Reset cart
+                directCart = [];
+                updateDirectCartUI();
+                directForm.reset();
+                directModal.classList.remove('active');
+            } catch (err) {
+                showToast('Failed to place order. Please try again.');
+            } finally {
+                submitBtn.textContent = 'Place Order';
+                submitBtn.disabled = false;
+            }
+        });
+    }
+});

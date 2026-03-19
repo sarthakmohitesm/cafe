@@ -3,7 +3,6 @@ const mysql = require('mysql2');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
-
 const app = express();
 const PORT = 3000;
 
@@ -17,25 +16,50 @@ app.use(express.static(path.join(__dirname, 'public')));
 // MySQL Database Connection
 // Update these credentials to match your MySQL Workbench setup
 // ============================================================
-const db = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: 'Pass@123',          // <-- Enter your MySQL password here
-    database: 'cafe_aroma_db'
-});
+let dbConnected = false;
+let db;
 
-db.connect((err) => {
-    if (err) {
-        console.error('❌ Database connection failed:', err.message);
-        console.log('⚠️  Server running without database. Using fallback data.');
-    } else {
-        console.log('✅ Connected to MySQL database: cafe_aroma_db');
+try {
+    db = mysql.createConnection({
+        host: 'localhost',
+        user: 'root',
+        password: 'Pass@123',          // <-- Enter your MySQL password here
+        database: 'cafe_aroma_db',
+        connectTimeout: 5000
+    });
+
+    db.connect((err) => {
+        if (err) {
+            console.error('❌ Database connection failed:', err.message);
+            console.log('⚠️  Server running without database. Using fallback data.');
+            dbConnected = false;
+        } else {
+            console.log('✅ Connected to MySQL database: cafe_aroma_db');
+            dbConnected = true;
+        }
+    });
+
+    db.on('error', (err) => {
+        console.error('DB error:', err.message);
+        dbConnected = false;
+    });
+} catch (e) {
+    console.error('❌ Could not create DB connection:', e.message);
+    dbConnected = false;
+}
+
+// Helper to safely query - returns fallback if DB not connected
+function safeQuery(query, params, fallbackData, callback) {
+    if (!dbConnected || !db) {
+        return callback(fallbackData);
     }
-});
-
-// Helper: check if DB is connected
-function isDbConnected() {
-    return db && db.authorized !== false && db.state !== 'disconnected';
+    db.query(query, params, (err, results) => {
+        if (err) {
+            console.error('Query error:', err.message);
+            return callback(fallbackData);
+        }
+        callback(results);
+    });
 }
 
 // ============================================================
@@ -85,10 +109,8 @@ const fallbackReviews = [
 
 // GET - All categories
 app.get('/api/categories', (req, res) => {
-    const query = 'SELECT * FROM categories ORDER BY category_name';
-    db.query(query, (err, results) => {
-        if (err) return res.json(fallbackCategories);
-        res.json(results);
+    safeQuery('SELECT * FROM categories ORDER BY category_name', [], fallbackCategories, (data) => {
+        res.json(data);
     });
 });
 
@@ -101,9 +123,8 @@ app.get('/api/menu', (req, res) => {
         WHERE m.is_available = TRUE 
         ORDER BY m.category_id, m.item_name
     `;
-    db.query(query, (err, results) => {
-        if (err) return res.json(fallbackMenuItems);
-        res.json(results);
+    safeQuery(query, [], fallbackMenuItems, (data) => {
+        res.json(data);
     });
 });
 
@@ -116,9 +137,8 @@ app.get('/api/menu/featured', (req, res) => {
         WHERE m.is_featured = TRUE AND m.is_available = TRUE 
         ORDER BY m.category_id
     `;
-    db.query(query, (err, results) => {
-        if (err) return res.json(fallbackMenuItems.filter(i => i.is_featured));
-        res.json(results);
+    safeQuery(query, [], fallbackMenuItems.filter(i => i.is_featured), (data) => {
+        res.json(data);
     });
 });
 
@@ -131,9 +151,9 @@ app.get('/api/menu/category/:categoryId', (req, res) => {
         WHERE m.category_id = ? AND m.is_available = TRUE 
         ORDER BY m.item_name
     `;
-    db.query(query, [req.params.categoryId], (err, results) => {
-        if (err) return res.json(fallbackMenuItems.filter(i => i.category_id == req.params.categoryId));
-        res.json(results);
+    const fallback = fallbackMenuItems.filter(i => i.category_id == req.params.categoryId);
+    safeQuery(query, [req.params.categoryId], fallback, (data) => {
+        res.json(data);
     });
 });
 
@@ -143,6 +163,10 @@ app.post('/api/reservations', (req, res) => {
 
     if (!customer_name || !email || !phone || !reservation_date || !reservation_time || !party_size) {
         return res.status(400).json({ error: 'All required fields must be filled' });
+    }
+
+    if (!dbConnected) {
+        return res.json({ success: true, message: 'Reservation request received! (Demo mode)', id: Date.now() });
     }
 
     const query = `
@@ -166,6 +190,10 @@ app.post('/api/contact', (req, res) => {
         return res.status(400).json({ error: 'Name, email, and message are required' });
     }
 
+    if (!dbConnected) {
+        return res.json({ success: true, message: 'Message received! (Demo mode)' });
+    }
+
     const query = `
         INSERT INTO contact_messages (sender_name, sender_email, subject, message)
         VALUES (?, ?, ?, ?)
@@ -181,10 +209,8 @@ app.post('/api/contact', (req, res) => {
 
 // GET - Approved reviews
 app.get('/api/reviews', (req, res) => {
-    const query = 'SELECT * FROM reviews WHERE is_approved = TRUE ORDER BY created_at DESC LIMIT 10';
-    db.query(query, (err, results) => {
-        if (err) return res.json(fallbackReviews);
-        res.json(results);
+    safeQuery('SELECT * FROM reviews WHERE is_approved = TRUE ORDER BY created_at DESC LIMIT 10', [], fallbackReviews, (data) => {
+        res.json(data);
     });
 });
 
@@ -194,6 +220,10 @@ app.post('/api/reviews', (req, res) => {
 
     if (!customer_name || !rating || !review_text) {
         return res.status(400).json({ error: 'Name, rating, and review are required' });
+    }
+
+    if (!dbConnected) {
+        return res.json({ success: true, message: 'Review submitted! (Demo mode)' });
     }
 
     const query = `
@@ -209,22 +239,321 @@ app.post('/api/reviews', (req, res) => {
     });
 });
 
-// POST - Place an order
-app.post('/api/orders', (req, res) => {
-    const { customer_name, email, phone, items, special_instructions } = req.body;
+// ============================================================
+// TABLE AND ORDER MANAGEMENT
+// ============================================================
 
-    if (!customer_name || !email || !items || items.length === 0) {
+// In-memory storage for demo mode (when DB is not connected)
+let demoBookings = [];
+let demoOrders = [];
+
+// GET - Table status (which tables are booked today)
+app.get('/api/tables/status', (req, res) => {
+    const allTables = [];
+    for (let i = 1; i <= 12; i++) {
+        allTables.push({
+            table_id: i,
+            seats: [2,2,4,4,4,6,6,4,2,2,8,4][i-1],
+            zone: i <= 4 ? 'Window' : i <= 8 ? 'Center' : 'Cozy Corner',
+            status: 'available'
+        });
+    }
+
+    if (!dbConnected) {
+        // Check demo bookings
+        const today = new Date().toISOString().split('T')[0];
+        demoBookings.forEach(b => {
+            if (b.reservation_date === today) {
+                const table = allTables.find(t => t.table_id === b.table_id);
+                if (table) table.status = 'booked';
+            }
+        });
+        return res.json(allTables);
+    }
+
+    const query = `SELECT DISTINCT table_id FROM reservations WHERE reservation_date = CURDATE() AND status != 'cancelled'`;
+    db.query(query, (err, results) => {
+        if (err) return res.json(allTables);
+        const bookedIds = results.map(r => r.table_id);
+        allTables.forEach(t => {
+            if (bookedIds.includes(t.table_id)) t.status = 'booked';
+        });
+        res.json(allTables);
+    });
+});
+
+// POST - Create a reservation (updated with table_id)
+app.post('/api/reservations', (req, res) => {
+    const { customer_name, email, phone, reservation_date, reservation_time, party_size, special_requests, table_id } = req.body;
+
+    if (!customer_name || !email || !phone || !reservation_date || !reservation_time || !party_size) {
+        return res.status(400).json({ error: 'All required fields must be filled' });
+    }
+
+    // Store in demo array
+    const booking = {
+        id: Date.now(),
+        customer_name, email, phone, reservation_date, reservation_time,
+        party_size: parseInt(party_size),
+        table_id: table_id || null,
+        special_requests: special_requests || '',
+        status: 'confirmed',
+        created_at: new Date().toISOString()
+    };
+    demoBookings.push(booking);
+
+    if (!dbConnected) {
+        return res.json({ success: true, message: 'Reservation confirmed! (Demo mode)', id: booking.id });
+    }
+
+    const query = `
+        INSERT INTO reservations (customer_name, email, phone, reservation_date, reservation_time, party_size, table_id, special_requests)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+    db.query(query, [customer_name, email, phone, reservation_date, reservation_time, party_size, table_id || null, special_requests || ''], (err, result) => {
+        if (err) {
+            console.error('Reservation error:', err);
+            return res.json({ success: true, message: 'Reservation confirmed! (Demo mode)', id: booking.id });
+        }
+        res.json({ success: true, message: 'Reservation confirmed!', id: result.insertId });
+    });
+});
+
+// POST - Place an order (updated with table_id)
+app.post('/api/orders', (req, res) => {
+    const { customer_name, email, phone, table_id, items } = req.body;
+
+    if (!customer_name || !items || items.length === 0) {
         return res.status(400).json({ error: 'Customer info and at least one item are required' });
     }
 
     const totalAmount = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-    // In demo mode, just return success
-    res.json({
-        success: true,
-        message: 'Order placed successfully!',
+    const order = {
         order_id: Date.now(),
-        total: totalAmount.toFixed(2)
+        customer_name, email, phone,
+        table_id: table_id || null,
+        items,
+        total: totalAmount.toFixed(2),
+        status: 'pending',
+        created_at: new Date().toISOString()
+    };
+    demoOrders.push(order);
+
+    if (!dbConnected) {
+        return res.json({
+            success: true,
+            message: 'Order placed successfully!',
+            order_id: order.order_id,
+            total: order.total
+        });
+    }
+
+    const orderQuery = `INSERT INTO orders (customer_name, email, phone, table_id, total_amount, status) VALUES (?, ?, ?, ?, ?, 'pending')`;
+    db.query(orderQuery, [customer_name, email || '', phone || '', table_id || null, totalAmount], (err, result) => {
+        if (err) {
+            console.error('Order error:', err);
+            return res.json({ success: true, message: 'Order placed! (Demo mode)', order_id: order.order_id, total: order.total });
+        }
+
+        const orderId = result.insertId;
+        const itemValues = items.map(i => [orderId, i.item_id, i.quantity, i.price]);
+        const itemQuery = `INSERT INTO order_items (order_id, item_id, quantity, unit_price) VALUES ?`;
+
+        db.query(itemQuery, [itemValues], (err2) => {
+            if (err2) console.error('Order items error:', err2);
+            res.json({ success: true, message: 'Order placed successfully!', order_id: orderId, total: totalAmount.toFixed(2) });
+        });
+    });
+});
+
+// ============================================================
+// ADMIN API ROUTES
+// ============================================================
+
+// POST - Admin Login
+app.post('/api/admin/login', (req, res) => {
+    const { username, password } = req.body;
+    
+    if (!username || !password) {
+        return res.status(400).json({ error: 'Username and password required' });
+    }
+
+    if (!dbConnected) {
+        // Fallback demo mode auth
+        if (username === 'admin' && password === 'admin123') {
+            return res.json({ success: true, token: 'demo-token', message: 'Logged in successfully (Demo mode)' });
+        } else {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+    }
+
+    const query = 'SELECT admin_id, username FROM admins WHERE username = ? AND password_hash = ?';
+    db.query(query, [username, password], (err, results) => {
+        if (err) {
+            console.error('Login error:', err);
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+
+        if (results.length > 0) {
+            // Generate a simple token (in production, use JWT)
+            const token = Buffer.from(username + ':' + Date.now()).toString('base64');
+            res.json({ success: true, token, admin: results[0], message: 'Logged in successfully' });
+        } else {
+            res.status(401).json({ error: 'Invalid credentials' });
+        }
+    });
+});
+
+// GET - All reservations for admin
+app.get('/api/admin/reservations', (req, res) => {
+    if (!dbConnected) {
+        return res.json(demoBookings.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
+    }
+
+    const query = `SELECT * FROM reservations ORDER BY created_at DESC LIMIT 50`;
+    db.query(query, (err, results) => {
+        if (err) return res.json(demoBookings);
+        res.json(results);
+    });
+});
+
+// GET - All orders for admin
+app.get('/api/admin/orders', (req, res) => {
+    if (!dbConnected) {
+        return res.json(demoOrders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
+    }
+
+    const query = `SELECT * FROM orders ORDER BY created_at DESC LIMIT 50`;
+    db.query(query, (err, results) => {
+        if (err) return res.json(demoOrders);
+        res.json(results);
+    });
+});
+
+// PUT - Update reservation status
+app.put('/api/admin/reservations/:id/status', (req, res) => {
+    const { status } = req.body;
+    const { id } = req.params;
+    
+    if (!status) return res.status(400).json({ error: 'Status is required' });
+
+    if (!dbConnected) {
+        const booking = demoBookings.find(b => parseInt(b.id) === parseInt(id));
+        if (booking) booking.status = status;
+        return res.json({ success: true, message: 'Status updated (Demo mode)' });
+    }
+
+    const query = 'UPDATE reservations SET status = ? WHERE reservation_id = ?';
+    db.query(query, [status, id], (err) => {
+        if (err) return res.status(500).json({ error: 'Database error', details: err.message });
+        res.json({ success: true, message: 'Reservation status updated successfully' });
+    });
+});
+
+// PUT - Update order status
+app.put('/api/admin/orders/:id/status', (req, res) => {
+    const { status } = req.body;
+    const { id } = req.params;
+
+    if (!status) return res.status(400).json({ error: 'Status is required' });
+
+    if (!dbConnected) {
+        const order = demoOrders.find(o => parseInt(o.order_id) === parseInt(id));
+        if (order) order.status = status;
+        return res.json({ success: true, message: 'Status updated (Demo mode)' });
+    }
+
+    const query = 'UPDATE orders SET status = ? WHERE order_id = ?';
+    db.query(query, [status, id], (err) => {
+        if (err) return res.status(500).json({ error: 'Database error', details: err.message });
+        res.json({ success: true, message: 'Order status updated successfully' });
+    });
+});
+
+// GET - Table booking summary for admin
+app.get('/api/admin/tables', (req, res) => {
+    const allTables = [];
+    for (let i = 1; i <= 12; i++) {
+        allTables.push({
+            table_id: i,
+            table_name: `T${i}`,
+            seats: [2,2,4,4,4,6,6,4,2,2,8,4][i-1],
+            zone: i <= 4 ? 'Window' : i <= 8 ? 'Center' : 'Cozy Corner',
+            status: 'available',
+            booked_by: null,
+            booked_time: null
+        });
+    }
+
+    if (!dbConnected) {
+        const today = new Date().toISOString().split('T')[0];
+        demoBookings.forEach(b => {
+            if (b.reservation_date === today) {
+                const table = allTables.find(t => t.table_id === b.table_id);
+                if (table) {
+                    table.status = 'booked';
+                    table.booked_by = b.customer_name;
+                    table.booked_time = b.reservation_time;
+                }
+            }
+        });
+        return res.json(allTables);
+    }
+
+    const query = `SELECT r.table_id, r.customer_name, r.reservation_time FROM reservations r WHERE r.reservation_date = CURDATE() AND r.status != 'cancelled'`;
+    db.query(query, (err, results) => {
+        if (err) return res.json(allTables);
+        results.forEach(r => {
+            const table = allTables.find(t => t.table_id === r.table_id);
+            if (table) {
+                table.status = 'booked';
+                table.booked_by = r.customer_name;
+                table.booked_time = r.reservation_time;
+            }
+        });
+        res.json(allTables);
+    });
+});
+
+// GET - Admin dashboard stats
+app.get('/api/admin/stats', (req, res) => {
+    if (!dbConnected) {
+        const today = new Date().toISOString().split('T')[0];
+        const todayBookings = demoBookings.filter(b => b.reservation_date === today);
+        const totalRevenue = demoOrders.reduce((sum, o) => sum + parseFloat(o.total), 0);
+        return res.json({
+            total_orders: demoOrders.length,
+            total_reservations: demoBookings.length,
+            tables_booked_today: todayBookings.length,
+            total_tables: 12,
+            total_revenue: totalRevenue.toFixed(2),
+            pending_orders: demoOrders.filter(o => o.status === 'pending').length
+        });
+    }
+
+    const statsQueries = [
+        `SELECT COUNT(*) as count FROM orders`,
+        `SELECT COUNT(*) as count FROM reservations`,
+        `SELECT COUNT(DISTINCT table_id) as count FROM reservations WHERE reservation_date = CURDATE() AND status != 'cancelled'`,
+        `SELECT COALESCE(SUM(total_amount), 0) as total FROM orders`,
+        `SELECT COUNT(*) as count FROM orders WHERE status = 'pending'`
+    ];
+
+    Promise.all(statsQueries.map(q => new Promise((resolve) => {
+        db.query(q, (err, results) => {
+            if (err) resolve(0);
+            else resolve(results[0].count || results[0].total || 0);
+        });
+    }))).then(([orders, reservations, tablesBooked, revenue, pending]) => {
+        res.json({
+            total_orders: orders,
+            total_reservations: reservations,
+            tables_booked_today: tablesBooked,
+            total_tables: 12,
+            total_revenue: parseFloat(revenue).toFixed(2),
+            pending_orders: pending
+        });
     });
 });
 
@@ -241,5 +570,6 @@ app.use((req, res) => {
 app.listen(PORT, () => {
     console.log(`\n☕ Café Aroma server running at http://localhost:${PORT}`);
     console.log(`📂 Serving static files from /public`);
-    console.log(`📡 API available at http://localhost:${PORT}/api\n`);
+    console.log(`📡 API available at http://localhost:${PORT}/api`);
+    console.log(`🔐 Admin panel at http://localhost:${PORT}/admin.html\n`);
 });

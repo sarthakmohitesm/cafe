@@ -47,36 +47,42 @@ CREATE TABLE IF NOT EXISTS customers (
 );
 
 -- ============================================================
--- Step 5: Create the 'orders' table
+-- Step 5: Create the 'orders' table (updated with customer info and table_id)
 -- ============================================================
-CREATE TABLE IF NOT EXISTS orders (
+DROP TABLE IF EXISTS order_items;
+DROP TABLE IF EXISTS orders;
+
+CREATE TABLE orders (
     order_id INT AUTO_INCREMENT PRIMARY KEY,
-    customer_id INT,
-    order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    customer_name VARCHAR(200) NOT NULL,
+    email VARCHAR(200),
+    phone VARCHAR(20),
+    table_id INT,
     total_amount DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
-    status ENUM('pending', 'preparing', 'ready', 'delivered', 'cancelled') DEFAULT 'pending',
+    status ENUM('pending', 'preparing', 'ready', 'delivered', 'completed', 'cancelled') DEFAULT 'pending',
     special_instructions TEXT,
-    FOREIGN KEY (customer_id) REFERENCES customers(customer_id) ON DELETE SET NULL
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ============================================================
 -- Step 6: Create the 'order_items' table
 -- ============================================================
-CREATE TABLE IF NOT EXISTS order_items (
+CREATE TABLE order_items (
     order_item_id INT AUTO_INCREMENT PRIMARY KEY,
     order_id INT NOT NULL,
     item_id INT NOT NULL,
     quantity INT NOT NULL DEFAULT 1,
     unit_price DECIMAL(10, 2) NOT NULL,
-    subtotal DECIMAL(10, 2) NOT NULL,
     FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE,
     FOREIGN KEY (item_id) REFERENCES menu_items(item_id) ON DELETE CASCADE
 );
 
 -- ============================================================
--- Step 7: Create the 'reservations' table
+-- Step 7: Create the 'reservations' table (updated with table_id)
 -- ============================================================
-CREATE TABLE IF NOT EXISTS reservations (
+DROP TABLE IF EXISTS reservations;
+
+CREATE TABLE reservations (
     reservation_id INT AUTO_INCREMENT PRIMARY KEY,
     customer_name VARCHAR(200) NOT NULL,
     email VARCHAR(200) NOT NULL,
@@ -84,8 +90,9 @@ CREATE TABLE IF NOT EXISTS reservations (
     reservation_date DATE NOT NULL,
     reservation_time TIME NOT NULL,
     party_size INT NOT NULL DEFAULT 1,
+    table_id INT,
     special_requests TEXT,
-    status ENUM('pending', 'confirmed', 'cancelled', 'completed') DEFAULT 'pending',
+    status ENUM('pending', 'confirmed', 'cancelled', 'completed') DEFAULT 'confirmed',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -169,6 +176,20 @@ INSERT INTO reviews (customer_name, email, rating, review_text, is_approved) VAL
 ('Priya Patel', 'priya@email.com', 5, 'The tiramisu here is to die for! Perfect place for a weekend brunch with friends.', TRUE),
 ('Vikram Singh', 'vikram@email.com', 4, 'Nice ambiance and quality drinks. Would definitely recommend the cold brew on a hot day.', TRUE),
 ('Meera Joshi', 'meera@email.com', 5, 'Best café in the city! The avocado toast is absolutely delicious and the coffee is always perfect.', TRUE);
+
+-- ============================================================
+-- Step 13: Create the 'admins' table
+-- ============================================================
+CREATE TABLE IF NOT EXISTS admins (
+    admin_id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(100) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    email VARCHAR(200) NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT IGNORE INTO admins (username, password_hash, email) 
+VALUES ('admin', 'admin123', 'admin@cafearoma.com');
 
 -- ============================================================
 -- END OF DATABASE SETUP
