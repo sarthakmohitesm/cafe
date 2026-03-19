@@ -264,7 +264,22 @@
             border: 1px solid var(--border-color);
             text-align: center;
             transition: transform 0.3s ease, border-color 0.3s ease;
+            animation: cardEntrance 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+            opacity: 0;
+            transform: scale(0.9);
         }
+
+        @keyframes cardEntrance {
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .stat-card:nth-child(1) { animation-delay: 0.1s; }
+        .stat-card:nth-child(2) { animation-delay: 0.2s; }
+        .stat-card:nth-child(3) { animation-delay: 0.3s; }
+        .stat-card:nth-child(4) { animation-delay: 0.4s; }
 
         .stat-card:hover {
             transform: translateY(-5px);
@@ -299,7 +314,21 @@
             border: 1px solid var(--border-color);
             padding: 24px;
             overflow: hidden;
+            animation: panelFadeIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+            opacity: 0;
+            transform: translateY(20px);
         }
+
+        @keyframes panelFadeIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .panel:nth-child(1) { animation-delay: 0.1s; }
+        .panel:nth-child(2) { animation-delay: 0.2s; }
+        .panel:nth-child(3) { animation-delay: 0.3s; }
 
         .panel h3 {
             font-family: var(--font-display);
@@ -423,7 +452,21 @@
             gap: 12px;
             position: relative;
             transition: all 0.3s ease;
+            animation: zoneAppear 0.5s ease-out forwards;
+            opacity: 0;
+            transform: translateX(-15px);
         }
+
+        @keyframes zoneAppear {
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .mini-zone:nth-child(1) { animation-delay: 0.45s; }
+        .mini-zone:nth-child(2) { animation-delay: 0.55s; }
+        .mini-zone:nth-child(3) { animation-delay: 0.65s; }
 
         .mini-zone:hover {
             background: rgba(255, 255, 255, 0.05);
